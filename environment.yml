@@ -1,0 +1,16 @@
+name: stroke-outcome-dev
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - numpy>=1.21.0
+  - pandas
+  - pip
+  - python
+  - importlib_resources
+  - stroke-outcome
+  - pip:
+    - jupyterlab
+    - setuptools
+    - twine
+    - wheel
