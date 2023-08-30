@@ -47,6 +47,7 @@ def split_X_and_y(df, column):
     y = df[column]
     return X, y
 
+
 def one_hot_encode_column(X, col, prefix='team'):
     # Keep copy of original, with 'Stroke team' not one-hot encoded
     X_combined = X.copy(deep=True)
