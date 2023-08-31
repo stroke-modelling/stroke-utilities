@@ -49,8 +49,11 @@ def split_X_and_y(df, column):
 
 
 def one_hot_encode_column(X, col, prefix='team'):
+    """
+    Create a copy of X data with one column made one-hot-encoded.
+    """
     # Keep copy of original, with 'Stroke team' not one-hot encoded
-    X_combined = X.copy(deep=True)
+    # X_combined = X.copy(deep=True)
     
     # One-hot encode 'Stroke team'
     X_hosp = pd.get_dummies(X[col], prefix=prefix)

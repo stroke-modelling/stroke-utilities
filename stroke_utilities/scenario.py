@@ -38,6 +38,12 @@ def create_masks(
     minutes_left              - float. How much time there must be
                                 left after scan for treatment to be
                                 considered.
+    col_precise_onset_known   - str. Name of the column containing
+                                whether precise onset is known.
+    col_onset_to_arrival      - str. Name of the column containing
+                                onset to arrival time.
+    col_arrival_to_scan       - str. Name of the column containing
+                                arrival to scan time.
 
     Returns:
     --------
@@ -261,6 +267,7 @@ def predict_thrombolysis_rate_in_benchmark_scenario(
                              to be passed to the model.            
     limit_treatment_mins   - float.
     minutes_left           - float.
+    all_team_names         - list. List of stroke team names.
     team_id_column         - str. Name of the stroke team column.
     prediction_column      - str. Name of the predicted value column.
     split_by_stroke_type   - bool.
@@ -277,12 +284,9 @@ def predict_thrombolysis_rate_in_benchmark_scenario(
     else:
         stroke_type_list = ['mixed']
     
-    # all_team_names = [t.split('team_')[-1] for t in team_shap.index] #sorted(list(set(big_data[team_id_column])))
-
     all_index_names = []
     all_stroke_types = []
     
-    # all_true_rates = []
     all_base_rates = []
     all_benchmark_rates = []
     all_base_rates_of_mask5 = []
@@ -316,6 +320,7 @@ def predict_thrombolysis_rate_in_benchmark_scenario(
             n_with_this_stroke_type = len(team_big_df)
 
             if n_with_this_stroke_type == 0:
+                # Prevent division by zero.
                 base_thrombolysis_rate = np.NaN
                 benchmark_thrombolysis_rate = np.NaN
                 base_thrombolysis_rate_of_mask5 = np.NaN
@@ -351,12 +356,6 @@ def predict_thrombolysis_rate_in_benchmark_scenario(
                 # Now the input dataframe should have the same columns as the
                 # data that was used to train the model.
                 
-                # # Predict for this team:
-                # team_big_df[team_id_column] = team_big_df[
-                #     team_id_column].astype('category')
-                # base_rate = model.predict(team_big_df).mean()
-                # all_base_rates.append(base_rate)
-                
                 # Predict for all benchmark teams:
                 predictions_for_this_team = predict_benchmark_thrombolysis(
                     model, 
@@ -373,12 +372,13 @@ def predict_thrombolysis_rate_in_benchmark_scenario(
                     n_with_this_stroke_type
                     )
 
-                
+            # Store results in big lists:
             all_base_rates.append(base_thrombolysis_rate)
             all_benchmark_rates.append(benchmark_thrombolysis_rate)
             all_base_rates_of_mask5.append(base_thrombolysis_rate_of_mask5)
             all_benchmark_rates_of_mask5.append(benchmark_thrombolysis_rate_of_mask5)
-            
+
+    # Convert multiple results lists to one results dataframe:
     all_teams_results = pd.DataFrame(
         data=np.vstack(
             (all_stroke_types,
@@ -484,6 +484,7 @@ def predict_benchmark_thrombolysis(
         # Update the stroke team ID to match the benchmark hospital ID:
         benchmark_team_id_column = f'team_{benchmark_team_id}'
         team_big_df[benchmark_team_id_column] = 1
+        # # For LightGBM where stroke team is a category:
         # # This conversion must go after the hospital ID is updated:
         # team_big_df[stroke_team_id_column] = team_big_df[
         #     stroke_team_id_column].astype('category')
@@ -628,11 +629,15 @@ def extract_hospital_performance(
     
     Inputs:
     -------
-    stroke_team - str. Name of the hospital for labelling.
-    stroke_type - str. Names of the stroke types in this data (i.e.
-                  non-Large Vessel Occlusion (nLVO), Large Vessel 
-                  Occlusion (LVO), other).
-    group_df    - pandas DataFrame. Contains all of the hospital data.
+    stroke_team    - str. Name of the hospital for labelling.
+    stroke_type    - str. Names of the stroke types in this data (i.e.
+                     non-Large Vessel Occlusion (nLVO), Large Vessel 
+                     Occlusion (LVO), other).
+    group_df       - pandas DataFrame. Contains all the hospital data.
+    limit_ivt_mins - float. Cutoff time for thrombolysis.
+    limit_mt_mins  - float. Cutoff time for thrombectomy.
+    minutes_left   - float. Minutes allowed between scan and 
+                     thrombolysis cutoff.
     
     Returns:
     --------
@@ -776,6 +781,26 @@ def build_scenario_hospital_performance(
         onset_time_known_proportion_dict,
         df_benchmark_codes
         ):
+    """
+    Create the scenario parameters for all stroke types and scenarios.
+
+    Inputs:
+    -------
+    hospital_performance             - pd.DataFrame. The output from
+                                       extract_hospital_performance().
+    stroke_team                      - str. Name of this stroke team.
+    scenario_vals_dict               - dict. Speed scenario parameters.
+    onset_time_known_proportion_dict - dict. Onset scenario parameters.
+    df_benchmark_codes               - pd.DataFrame. Contains benchmark
+                                       thrombolysis rates for all 
+                                       teams.
+
+    Returns:
+    --------
+    df_performance_scenarios - pd.DataFrame. Contains the pathway
+                               parameters for all scenarios and stroke
+                               types for this team.
+    """
     # Scenario changes to the performance data
     scenario_dicts = [
         dict(speed=0, onset=0, benchmark=0),  # base
@@ -944,9 +969,24 @@ def set_up_results_dataframe():
     
     return results_df, outcome_results_columns, trial_df_columns
 
+
 def gather_summary_results_across_all_trials(outcome_results_columns, trial_df):
     """
-    Gather results to match the order of the input dataframe.
+    Gather results across all trials.
+
+    Inputs:
+    -------
+    outcome_results_columns - list. Names of things measured from the
+                              outcome model results. Output from
+                              set_up_results_dataframe().
+    trial_df                - pd.DataFrame. A dataframe for the results
+                              to go into. Has as many rows as there
+                              have already been trials.
+
+    Returns:
+    --------
+    summary_trial_results - list. Important results gathered from the
+                            trial dataframe.
     """
     
     number_of_trials = len(trial_df.index)
@@ -991,7 +1031,28 @@ def gather_results_from_trial(
         n_baseline_good_per_1000, n_additional_good_per_1000
         ):
     """
+    Gather results for this trial only.
+    
     This setup is a bit silly but allows for trial_columns being in any order.
+
+    Inputs:
+    -------
+    trial_columns              - list. Names of columns to pick out
+                                 results for here. Output from 
+                                 set_up_results_dataframe().
+    combo_trial_dict           - dict. Results of pathway simulations.
+                                 Output of run_trial_of_pathways().
+    results_by_stroke_type     - dict. Results of outcome model.
+                                 Output of run_discrete_outcome_model.
+    n_baseline_good_per_1000   - float. Number of good outcomes per 
+                                 1000 patients when nobody is treated.
+    n_additional_good_per_1000 - float. Difference in number of good
+                                 outcomes per 1000 patients between
+                                 this scenario and the baseline.
+
+    Returns:
+    --------
+    result - list. The useful information.
     """
 
     # Save scenario results to dataframe
@@ -1036,23 +1097,61 @@ def gather_results_from_trial(
         
     return result
 
-def set_up_pathway_objects(hospital_name='', lvo_data=None, nlvo_data=None, other_data=None):
+
+def set_up_pathway_objects(
+        hospital_name='', lvo_data=None, nlvo_data=None, other_data=None
+        ):
+    """
+    Create pathway simulation objects for eligible stroke types.
+
+    Inputs:
+    -------
+    hospital_name - str. Stroke team name for naming the objects.
+    lvo_data      - pd.Series. The hospital performance parameters
+                    for LVO patients.
+    nlvo_data     - pd.Series. The hospital performance parameters
+                    for nLVO patients.
+    other_data    - pd.Series. The hospital performance parameters
+                    for "other" patients.
+
+    Returns:
+    --------
+    pathway_object_dict - dict. Contains the pathway objects.
+    """
     pathway_object_dict = {}
     if lvo_data is not None:
-        patient_pathway_lvo = SSNAP_Pathway(hospital_name, lvo_data, stroke_type_code=2)
+        patient_pathway_lvo = SSNAP_Pathway(
+            hospital_name, lvo_data, stroke_type_code=2)
         pathway_object_dict['lvo'] = patient_pathway_lvo
     if nlvo_data is not None:
-        patient_pathway_nlvo = SSNAP_Pathway(hospital_name, nlvo_data, stroke_type_code=1)
+        patient_pathway_nlvo = SSNAP_Pathway(
+            hospital_name, nlvo_data, stroke_type_code=1)
         pathway_object_dict['nlvo'] = patient_pathway_nlvo
     if other_data is not None:
-        patient_pathway_other = SSNAP_Pathway(hospital_name, other_data, stroke_type_code=0)
+        patient_pathway_other = SSNAP_Pathway(
+            hospital_name, other_data, stroke_type_code=0)
         pathway_object_dict['other'] = patient_pathway_other
     return pathway_object_dict
 
 
 def run_trial_of_pathways(pathway_object_dict):
     """
-    eh?
+    Run the pathway simulations for multiple stroke types.
+
+    The pathways are run separately and with different hospital
+    performance parameters for the different stroke types.
+    The results from the multiple pathways are then combined into
+    one single output dictionary.
+
+    Inputs:
+    -------
+    pathway_object_dict - dict. The hospital performance parameters
+                          for the separate stroke types.
+
+    Returns:
+    --------
+    combo_trial_dict - dict. The combined results from the multiple
+                       pathway simulations.
     """
     
     # Gather the results in here:
@@ -1086,10 +1185,11 @@ def run_trial_of_pathways(pathway_object_dict):
     # The empty list is in concatenate() in case there's only one entry
     # in trial_dict_list.
     combo_trial_arrays = [
-        np.concatenate((
-            [np.array([], dtype=trial_dict_list[0][key].data.dtype)] + 
-            [d[key].data for d in trial_dict_list]), 
-            dtype=trial_dict_list[0][key].data.dtype) 
+        np.concatenate(
+            ([np.array([], dtype=trial_dict_list[0][key].data.dtype)] + 
+             [d[key].data for d in trial_dict_list]), 
+            dtype=trial_dict_list[0][key].data.dtype
+            ) 
         for key in patient_pathway_lvo.trial.keys()
         ]
     combo_trial_dict = dict(zip(trial_dict_list[0].keys(), combo_trial_arrays))
@@ -1098,16 +1198,47 @@ def run_trial_of_pathways(pathway_object_dict):
 
 
 def run_discrete_outcome_model(patient_pathway_dict):
-    from stroke_outcome.outcome_utilities import import_mrs_dists_from_file, import_utility_dists_from_file
+    """
+    Wrapper to run the discrete outcome model.
+
+    The discrete outcome model needs a series of pre-stroke mRS scores,
+    one for each patient in the data. This function assumes that that
+    data is unavailable and so invents an mRS score via the "x_scores"
+    array. The x-scores are sampled uniformly in probability from 0 to 
+    1 and the values are matched to a pre-stroke mRS distribution to
+    select the mRS bin that each x falls into.
+
+    Inputs:
+    -------
+    patient_pathway_dict - dict. Data for the discrete outcome model.
+                           Named so because it's assumed this will be
+                           the output from a patient pathway.
+
+    Returns:
+    --------
+    results_by_stroke_type - dict. Outcome results split by stroke type
+                             and treatment.
+    patient_array_outcomes - dict. Combined outcome result for an input
+                             patient data set, picking out the relevant
+                             parts from the split results dictionary.
+    """
+    # Import required bits from the stroke-outcome package:
+    from stroke_outcome.outcome_utilities import \
+        import_mrs_dists_from_file, import_utility_dists_from_file
+    from stroke_outcome.discrete_outcome import Discrete_outcome
+    
     mrs_dists, mrs_dists_notes = import_mrs_dists_from_file()
     utility_dists, utility_dists_notes = (
         import_utility_dists_from_file())
 
     number_of_patients = len(patient_pathway_dict['stroke_type_code']) 
 
-    from stroke_outcome.discrete_outcome import Discrete_outcome
     # Initiate the outcome model object:
-    discrete_outcome = Discrete_outcome(mrs_dists, number_of_patients, utility_dists.loc['Wang2020'].values)
+    discrete_outcome = Discrete_outcome(
+        mrs_dists,
+        number_of_patients,
+        utility_dists.loc['Wang2020'].values  # Default utility scores.
+        )
     # Import patient array data:
     for key in discrete_outcome.trial.keys():
         if key in patient_pathway_dict:
