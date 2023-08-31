@@ -1,0 +1,12 @@
+# Set up allowed time and over-run for thrombolysis...
+allowed_onset_to_needle_time_mins: 270  
+# 4h 30m
+allowed_overrun_for_slow_scan_to_needle_mins: 15
+# ... and for thrombectomy
+allowed_onset_to_puncture_time_mins: 480
+allowed_overrun_for_slow_scan_to_puncture_mins: 15
+minutes_left: 15.0
+# Limit for comparing conditions (e.g. is onset to arrival within
+# 4hrs?). Separate limits for IVT (4hr) and MT (6hr):
+limit_ivt_mins: 240
+limit_mt_mins: 360
