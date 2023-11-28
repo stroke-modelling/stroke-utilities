@@ -15,7 +15,7 @@ def create_masks(
         time_to_treatment_mins: np.array,        
         limit_mins: float=np.inf,
         minutes_left: float=15.0,
-        col_precise_onset_known: str='precise_onset_known',
+        col_onset_known: str='onset_known',
         col_onset_to_arrival: str='onset_to_arrival_time',
         col_arrival_to_scan: str='arrival_to_scan_time',
         ):
@@ -38,8 +38,8 @@ def create_masks(
     minutes_left              - float. How much time there must be
                                 left after scan for treatment to be
                                 considered.
-    col_precise_onset_known   - str. Name of the column containing
-                                whether precise onset is known.
+    col_onset_known           - str. Name of the column containing
+                                whether onset is known.
     col_onset_to_arrival      - str. Name of the column containing
                                 onset to arrival time.
     col_arrival_to_scan       - str. Name of the column containing
@@ -51,7 +51,7 @@ def create_masks(
     """
     # Create masks.
     # 1: Onset time known
-    mask1 = group_df[col_precise_onset_known] == 1
+    mask1 = group_df[col_onset_known] == 1
     # 2: Mask 1 and onset to arrival on time
     mask2 = ((mask1 == True) & 
              (group_df[col_onset_to_arrival] <= limit_mins))
@@ -1250,5 +1250,5 @@ def run_discrete_outcome_model(patient_pathway_dict):
 
     # Calculate outcomes:
     import copy
-    results_by_stroke_type, patient_array_outcomes = discrete_outcome.calculate_outcomes()
-    return copy.copy(results_by_stroke_type), copy.copy(patient_array_outcomes)
+    patient_data_dict, results_by_stroke_type, patient_array_outcomes = discrete_outcome.calculate_outcomes()
+    return copy.copy(patient_data_dict), copy.copy(results_by_stroke_type), copy.copy(patient_array_outcomes)
