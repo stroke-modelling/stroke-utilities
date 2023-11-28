@@ -1,4 +1,4 @@
-name: stroke-outcome-dev
+name: stroke-utilities-dev
 channels:
   - defaults
   - conda-forge
@@ -9,6 +9,8 @@ dependencies:
   - python
   - importlib_resources
   - stroke-outcome
+  - shap
+  - xgboost
   - pip:
     - jupyterlab
     - setuptools
