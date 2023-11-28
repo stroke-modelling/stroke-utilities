@@ -8,11 +8,11 @@ dependencies:
   - pip
   - python
   - importlib_resources
-  - shap
-  - xgboost
+  - shap>=0.43.0
   - pip:
     - jupyterlab
     - setuptools
     - twine
     - wheel
     - stroke-outcome
+    - xgboost>=2.0.0
