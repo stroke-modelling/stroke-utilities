@@ -1,5 +1,6 @@
 # Set up allowed time and over-run for thrombolysis...
-allowed_onset_to_needle_time_mins: 270  
+allowed_onset_to_scan_time: 240
+allowed_onset_to_needle_time_mins: 270
 # 4h 30m
 allowed_overrun_for_slow_scan_to_needle_mins: 15
 # ... and for thrombectomy

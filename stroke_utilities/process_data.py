@@ -21,7 +21,7 @@ def restrict_data_to_range(df, low, high, column):
     try:
         mask = (df[column] >= low) & (df[column] <= high)
         df = df[mask]
-        df.drop(column, inplace=True, axis=1)
+        # df.drop(column, inplace=True, axis=1)
     except KeyError:
         # "year" isn't in the input data.
         pass
