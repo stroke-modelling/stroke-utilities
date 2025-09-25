@@ -1,0 +1,19 @@
+name: stroke-utilities-dev5
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - numpy<=2.0.0
+  - pandas
+  - pip
+  - python>=3.12
+  - importlib_resources
+  - shap==0.43.0
+  - matplotlib
+  - pip:
+    - jupyterlab
+    - setuptools
+    - twine
+    - wheel
+    - stroke-outcome
+    - xgboost==2.0.2
