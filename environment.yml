@@ -1,4 +1,4 @@
-name: stroke-utilities-dev
+name: stroke-utilities-dev2
 channels:
   - defaults
   - conda-forge
@@ -6,9 +6,10 @@ dependencies:
   - numpy>=1.21.0
   - pandas
   - pip
-  - python
+  - python<3.10
   - importlib_resources
-  - shap>=0.43.0
+  - shap==0.43.0
+  - matplotlib
   - pip:
     - jupyterlab
     - setuptools
